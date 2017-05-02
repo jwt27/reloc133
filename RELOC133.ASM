@@ -4,8 +4,7 @@
 org 0x100
 use16
     mov dx, msg_hello
-    mov ah, 9
-    int 0x21
+    call print_string
     call find_bios
     jc fail
     push ds
@@ -21,7 +20,7 @@ use16
     mov ax, [0]
     not ax
     mov [0], ax
-    cmp [0], ax
+    cmp [0], ax     ; test if we have write access
     mov dx, err_readonly
     jne fail
     not ax
@@ -81,9 +80,11 @@ use16
     call set_rw
     call fix_mcb
     sti
+    push cs
+    pop ds
     mov dx, msg_done
-    mov ah, 9
-    int 0x21
+    call print_string
+    call print_newline
     mov ax, 0x4c00
     int 0x21
 
@@ -147,7 +148,7 @@ find_chipset:
     clc
 .z: ret
 
-; set shadow-rom r/w bits for DS to AL, returns previous value in CL
+; set shadow-rom r/w bits for DS to AL, on pci device BX. returns previous value in CL.
 set_rw:
     push ax
     mov di, ds
@@ -264,16 +265,25 @@ alloc:
     mov dx, err_alloc
     ret
 
+print_newline:
+    mov dx, msg_newline
+print_string:
+    mov ah, 9
+    int 0x21
+    ret
+    
+
 fail:
     push cs
     pop ds
-    mov ah, 0x09
-    int 0x21
+    call print_string
+    call print_newline
     mov ax, 0x4cff
     int 0x21
 
-msg_hello db "RELOC133 - (C) 2017 J.W. Jagersma - $'
+msg_hello db "RELOC133 - (C) 2017 J.W. Jagersma - $"
 msg_done db "Done.$"
+msg_newline db 0x0d, 0x0a, '$'
 err_notfound db "ERROR: Promise Ultra133 TX2 BIOS not found.$"
 err_ebdanotfound db "ERROR: Extended BDA found in unexpected location.$"
 err_notmax db "ERROR: Expected Ultra133 data area on top of memory.$"
@@ -283,6 +293,6 @@ err_chipset db "ERROR: Chipset not found?$"
 err_chipsetaccess db "ERROR: Unable to access chipset.$"
 warn_chipset db "WARNING: Unsupported chipset!$"
 name_ultra133 db "ULTRA133"
-name_ebda db "EBDA",0,0,0,0
+name_ebda db "EBDA", 0, 0, 0, 0
 
 
